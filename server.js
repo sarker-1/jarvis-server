@@ -4,7 +4,6 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.text());
 
-// 🔐 API key from environment (SAFE)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 app.post("/ai", async (req, res) => {
@@ -30,17 +29,17 @@ app.post("/ai", async (req, res) => {
 
     const data = await response.json();
 
-    const text =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
+    // 🔥 IMPORTANT LINE
+    const aiText =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || "No AI reply";
 
-    res.send(text);
+    res.send(aiText); // 👈 plain text send
   } catch (error) {
     console.log(error);
-    res.send("Error connecting AI");
+    res.send("Error");
   }
 });
 
-// 🔥 server start
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });
