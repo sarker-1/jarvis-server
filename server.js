@@ -4,13 +4,12 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.text());
 
-// 🔐 API key from env
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 app.post("/ai", async (req, res) => {
   const userInput = req.body;
 
-  // ✅ API key check (IMPORTANT)
+  // ✅ API key check
   if (!GEMINI_API_KEY) {
     console.log("❌ API key missing");
     return res.send("API key missing");
@@ -18,7 +17,7 @@ app.post("/ai", async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -36,8 +35,10 @@ app.post("/ai", async (req, res) => {
 
     const data = await response.json();
 
-    console.log("🔍 Gemini response:", data);
+    // 🔍 DEBUG (VERY IMPORTANT)
+    console.log("Gemini response:", JSON.stringify(data, null, 2));
 
+    // ✅ safe response extract
     const aiText =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "No AI reply";
@@ -49,7 +50,11 @@ app.post("/ai", async (req, res) => {
   }
 });
 
-// 🚀 start server
+// 🔥 default route (browser test)
+app.get("/", (req, res) => {
+  res.send("JARVIS server running ✅");
+});
+
 app.listen(3000, () => {
-  console.log("Server running on port 3000");
+  console.log("🚀 Server running on port 3000");
 });
