@@ -16,7 +16,7 @@ app.post("/ai", async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -25,7 +25,6 @@ app.post("/ai", async (req, res) => {
         body: JSON.stringify({
           contents: [
             {
-              role: "user",
               parts: [{ text: userInput }],
             },
           ],
@@ -37,7 +36,6 @@ app.post("/ai", async (req, res) => {
 
     console.log("🔍 Gemini response:", JSON.stringify(data, null, 2));
 
-    // ❌ error handle
     if (data.error) {
       console.log("❌ Gemini error:", data.error);
       return res.send("Gemini API error");
