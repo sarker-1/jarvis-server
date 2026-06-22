@@ -1,4 +1,5 @@
 import express from "express";
+import fetch from "node-fetch";
 import fs from "fs";
 
 const app = express();
@@ -6,90 +7,59 @@ app.use(express.text({ limit: "1mb" }));
 
 const API_KEY = process.env.OPENROUTER_API_KEY;
 
-// 🧠 Memory
 let history = [
   {
     role: "system",
     content:
-      "You are Jarvis, a smart AI assistant. Speak in Bangla and English mix. Call the user Sir."
+      "You are Jarvis, a smart AI assistant. Speak Bangla + English mix. Call the user Sir."
   }
 ];
 
-// 🎯 Modes
 let commandMode = false;
-let lastWakeTime = 0;
 
-// 💾 save memory
 function saveMemory() {
   fs.writeFileSync("memory.json", JSON.stringify(history, null, 2));
 }
 
-// 🔥 Clean text (noise filter)
-function cleanText(text) {
-  if (!text) return "";
-  return text.toLowerCase().trim();
-}
-
-// 🔥 wake word detect (improved)
 function isWakeWord(text) {
-  text = cleanText(text);
-  return text.includes("jarvis");
+  return text.toLowerCase().includes("jarvis");
 }
 
-// 🔥 device commands
 function handleDeviceCommand(text) {
-  text = cleanText(text);
+  text = text.toLowerCase();
 
   if (text.includes("light on")) return "💡 Light turned ON";
   if (text.includes("light off")) return "💡 Light turned OFF";
-  if (text.includes("fan on")) return "🌀 Fan turned ON";
-  if (text.includes("fan off")) return "🌀 Fan turned OFF";
 
   return null;
 }
 
-// 🤖 MAIN ROUTE
 app.post("/ai", async (req, res) => {
-  let userInput = req.body;
-  userInput = cleanText(userInput);
+  const userInput = req.body;
 
-  if (!userInput || userInput.length < 2) {
-    return res.send(""); // ignore noise
+  console.log("📩 Input:", userInput);
+
+  if (!API_KEY) {
+    return res.send("API key missing");
   }
 
-  const now = Date.now();
-
-  // 🎤 WAKE WORD
   if (isWakeWord(userInput)) {
-    // prevent spam trigger (2 sec gap)
-    if (now - lastWakeTime > 2000) {
-      commandMode = true;
-      lastWakeTime = now;
-      return res.send("Yes Sir 🎧");
-    } else {
-      return res.send("");
-    }
+    commandMode = true;
+    return res.send("Yes Sir 🎧");
   }
 
-  // ❌ ignore if not in command mode
   if (!commandMode) {
     return res.send("");
   }
 
   try {
-    // 🔌 device command first
-    const deviceResponse = handleDeviceCommand(userInput);
-    if (deviceResponse) {
+    const device = handleDeviceCommand(userInput);
+    if (device) {
       commandMode = false;
-      return res.send(deviceResponse);
+      return res.send(device);
     }
 
-    // 🤖 AI processing
     history.push({ role: "user", content: userInput });
-
-    if (history.length > 10) {
-      history.splice(1, 2);
-    }
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -97,7 +67,9 @@ app.post("/ai", async (req, res) => {
         method: "POST",
         headers: {
           Authorization: `Bearer ${API_KEY}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://your-app.com",
+          "X-Title": "Jarvis ESP"
         },
         body: JSON.stringify({
           model: "meta-llama/llama-3-8b-instruct",
@@ -108,6 +80,8 @@ app.post("/ai", async (req, res) => {
 
     const data = await response.json();
 
+    console.log("🧠 AI:", data);
+
     const aiText =
       data?.choices?.[0]?.message?.content || "Sorry Sir";
 
@@ -117,30 +91,16 @@ app.post("/ai", async (req, res) => {
     commandMode = false;
 
     res.send(aiText);
-
   } catch (err) {
-    console.log(err);
+    console.log("❌ ERROR:", err);
     res.send("Server error");
   }
 });
 
-// 🔊 SPEAKER
-app.get("/speak", (req, res) => {
-  const text = req.query.text || "Yes Sir";
-
-  const url =
-    "https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=" +
-    encodeURIComponent(text);
-
-  res.send(url);
-});
-
-// 📱 STATUS
 app.get("/", (req, res) => {
   res.send("JARVIS ACTIVE 🚀");
 });
 
-// 🚀 START
 app.listen(3000, () => {
-  console.log("🔥 Jarvis server running");
+  console.log("🔥 Jarvis running");
 });
