@@ -3,11 +3,64 @@ import fetch from "node-fetch";
 
 const app = express();
 
-// 🎤 raw audio receive
+// 🎤 raw (voice)
 app.use(express.raw({ type: "*/*", limit: "5mb" }));
 
-// 🔤 text input support (ESP text mode)
+// 🔤 text
 app.use(express.text());
+
+// ==========================
+// 💬 TEXT → AI
+// ==========================
+app.post("/chat", async (req, res) => {
+  try {
+    let text = req.body;
+
+    // 🔥 FIX: buffer → string
+    if (Buffer.isBuffer(text)) {
+      text = text.toString("utf-8");
+    }
+
+    text = text.trim();
+
+    if (!text) return res.send("Empty");
+
+    console.log("💬 Text:", text);
+
+    const aiRes = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3-8b-instruct",
+          messages: [
+            {
+              role: "user",
+              content: text,
+            },
+          ],
+        }),
+      }
+    );
+
+    const aiData = await aiRes.json();
+
+    console.log("🧠 AI RAW:", aiData);
+
+    const reply =
+      aiData?.choices?.[0]?.message?.content || "Sorry Sir";
+
+    res.send(reply);
+
+  } catch (err) {
+    console.log("❌ CHAT ERROR:", err);
+    res.send("Chat Error");
+  }
+});
 
 // ==========================
 // 🎤 VOICE → TEXT → AI
@@ -17,7 +70,7 @@ app.post("/voice", async (req, res) => {
     const audio = req.body;
 
     if (!audio || audio.length === 0) {
-      return res.send("No audio received");
+      return res.send("No audio");
     }
 
     // 🎤 Deepgram STT
@@ -44,7 +97,7 @@ app.post("/voice", async (req, res) => {
       return res.send("Yes Sir 🎧");
     }
 
-    // 🤖 AI call
+    // 🤖 AI
     const aiRes = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -55,7 +108,12 @@ app.post("/voice", async (req, res) => {
         },
         body: JSON.stringify({
           model: "meta-llama/llama-3-8b-instruct",
-          messages: [{ role: "user", content: text }],
+          messages: [
+            {
+              role: "user",
+              content: text,
+            },
+          ],
         }),
       }
     );
@@ -78,48 +136,7 @@ app.post("/voice", async (req, res) => {
 });
 
 // ==========================
-// 💬 TEXT → AI (ESP Serial)
-// ==========================
-app.post("/chat", async (req, res) => {
-  try {
-    const text = req.body;
-
-    if (!text) return res.send("Empty");
-
-    console.log("💬 Text:", text);
-
-    const aiRes = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-3-8b-instruct",
-          messages: [{ role: "user", content: text }],
-        }),
-      }
-    );
-
-    const aiData = await aiRes.json();
-
-    console.log("🧠 AI RAW:", aiData);
-
-    const reply =
-      aiData?.choices?.[0]?.message?.content || "Sorry Sir";
-
-    res.send(reply);
-
-  } catch (err) {
-    console.log("❌ CHAT ERROR:", err);
-    res.send("Chat Error");
-  }
-});
-
-// ==========================
-// 🔊 Health check
+// 🧪 Health check
 // ==========================
 app.get("/", (req, res) => {
   res.send("JARVIS AI RUNNING 🔥");
