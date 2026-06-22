@@ -1,53 +1,87 @@
 import express from "express";
+import fs from "fs";
 
 const app = express();
-app.use(express.text());
+app.use(express.text({ limit: "1mb" }));
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY = process.env.OPENROUTER_API_KEY;
 
+// 🧠 Memory
+let history = [
+  {
+    role: "system",
+    content:
+      "You are Jarvis, a smart AI assistant. Speak in Bangla and English mix. Be respectful and call user 'Sir'."
+  }
+];
+
+// 💾 save memory
+function saveMemory() {
+  fs.writeFileSync("memory.json", JSON.stringify(history, null, 2));
+}
+
+// 🔥 WAKE WORD DETECTOR
+function isWakeWord(text) {
+  text = text.toLowerCase();
+  return text.includes("jarvis");
+}
+
+// 🤖 MAIN AI
 app.post("/ai", async (req, res) => {
   const userInput = req.body;
 
-  if (!GEMINI_API_KEY) {
-    return res.send("API key missing");
+  // 👉 wake word check
+  if (isWakeWord(userInput)) {
+    return res.send("Yes Sir 🎧");
   }
 
   try {
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": GEMINI_API_KEY
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: userInput }]
-            }
-          ]
-        })
-      }
-    );
+    history.push({ role: "user", content: userInput });
+
+    if (history.length > 10) {
+      history.splice(1, 2);
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-3-8b-instruct",
+        messages: history
+      })
+    });
 
     const data = await response.json();
 
-    console.log("Gemini response:", data);
+    const aiText =
+      data?.choices?.[0]?.message?.content || "No reply";
 
-    if (data.error) {
-      return res.send("Gemini API error");
-    }
+    history.push({ role: "assistant", content: aiText });
+    saveMemory();
 
-    const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No AI reply";
-
-    res.send(text);
+    res.send(aiText);
 
   } catch (err) {
+    console.log(err);
     res.send("Server error");
   }
 });
 
-app.listen(3000, () => console.log("Running"));
+// 🔊 SPEAKER
+app.get("/speak", (req, res) => {
+  const text = req.query.text || "Yes Sir";
+
+  const url =
+    "https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=" +
+    encodeURIComponent(text);
+
+  res.send(url);
+});
+
+// 🔥 SERVER
+app.listen(3000, () => {
+  console.log("🚀 Jarvis server running");
+});
