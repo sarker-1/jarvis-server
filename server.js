@@ -48,6 +48,7 @@ app.post("/ai", async (req, res) => {
       "No AI reply";
 
     res.send(text);
+
   } catch (error) {
     console.log("❌ SERVER ERROR:", error);
     res.send("Error connecting AI");
