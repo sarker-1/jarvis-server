@@ -9,7 +9,6 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 app.post("/ai", async (req, res) => {
   const userInput = req.body;
 
-  // ✅ API key check
   if (!GEMINI_API_KEY) {
     console.log("❌ API key missing");
     return res.send("API key missing");
@@ -17,7 +16,7 @@ app.post("/ai", async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -26,6 +25,7 @@ app.post("/ai", async (req, res) => {
         body: JSON.stringify({
           contents: [
             {
+              role: "user",
               parts: [{ text: userInput }],
             },
           ],
@@ -35,26 +35,26 @@ app.post("/ai", async (req, res) => {
 
     const data = await response.json();
 
-    // 🔍 DEBUG (VERY IMPORTANT)
-    console.log("Gemini response:", JSON.stringify(data, null, 2));
+    // 🔍 debug
+    console.log("FULL RESPONSE:", JSON.stringify(data, null, 2));
 
-    // ✅ safe response extract
-    const aiText =
+    // ⚠️ error handle (important)
+    if (data.error) {
+      console.log("❌ Gemini error:", data.error);
+      return res.send("Gemini API error");
+    }
+
+    const text =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "No AI reply";
 
-    res.send(aiText);
+    res.send(text);
   } catch (error) {
-    console.log("❌ ERROR:", error);
+    console.log("❌ SERVER ERROR:", error);
     res.send("Error connecting AI");
   }
 });
 
-// 🔥 default route (browser test)
-app.get("/", (req, res) => {
-  res.send("JARVIS server running ✅");
-});
-
 app.listen(3000, () => {
-  console.log("🚀 Server running on port 3000");
+  console.log("Server running on port 3000");
 });
