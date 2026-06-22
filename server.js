@@ -1,5 +1,4 @@
 import express from "express";
-import fetch from "node-fetch";
 
 const app = express();
 app.use(express.text());
@@ -10,16 +9,18 @@ app.post("/ai", async (req, res) => {
   const userInput = req.body;
 
   if (!GEMINI_API_KEY) {
+    console.log("❌ API key missing");
     return res.send("API key missing");
   }
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY, // 🔥 IMPORTANT CHANGE
         },
         body: JSON.stringify({
           contents: [
@@ -36,6 +37,7 @@ app.post("/ai", async (req, res) => {
     console.log("🔍 Gemini response:", JSON.stringify(data, null, 2));
 
     if (data.error) {
+      console.log("❌ Gemini error:", data.error);
       return res.send("Gemini API error");
     }
 
@@ -46,11 +48,11 @@ app.post("/ai", async (req, res) => {
     res.send(text);
 
   } catch (error) {
-    console.log(error);
-    res.send("Server error");
+    console.log("❌ SERVER ERROR:", error);
+    res.send("Error connecting AI");
   }
 });
 
 app.listen(3000, () => {
-  console.log("Server running");
+  console.log("🚀 Server running on port 3000");
 });
