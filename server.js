@@ -10,21 +10,22 @@ app.post("/ai", async (req, res) => {
   const userInput = req.body;
 
   if (!GEMINI_API_KEY) {
-    console.log("❌ API key missing");
     return res.send("API key missing");
   }
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY, // 🔥 IMPORTANT CHANGE
         },
         body: JSON.stringify({
           contents: [
             {
+              role: "user",
               parts: [{ text: userInput }],
             },
           ],
@@ -37,7 +38,6 @@ app.post("/ai", async (req, res) => {
     console.log("🔍 Gemini response:", JSON.stringify(data, null, 2));
 
     if (data.error) {
-      console.log("❌ Gemini error:", data.error);
       return res.send("Gemini API error");
     }
 
@@ -48,11 +48,11 @@ app.post("/ai", async (req, res) => {
     res.send(text);
 
   } catch (error) {
-    console.log("❌ SERVER ERROR:", error);
-    res.send("Error connecting AI");
+    console.log(error);
+    res.send("Server error");
   }
 });
 
 app.listen(3000, () => {
-  console.log("🚀 Server running on port 3000");
+  console.log("Server running");
 });
